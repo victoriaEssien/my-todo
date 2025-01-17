@@ -1,25 +1,57 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Button, Input } from '../components/Actions';
-import { useAuth } from '../hooks/useAuth';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/Card";
+import { Button, Input } from "../components/Actions";
+import { useAuth } from "../hooks/useAuth";
 
 function SignUp() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
 
+  // Basic validation checks
+  const validateForm = () => {
+    if (!email || !password) {
+      setError("Both email and password are required.");
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+      return false;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return false;
+    }
+
+    setError(""); // Reset error if validation passes
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
 
     try {
       await signUp(email, password);
     } catch (error) {
-      setError(error.message);
+      if (error.code === "auth/email-already-in-use") {
+        setError(
+          "This email address is already in use. Please use a different email or log in instead."
+        );
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -39,7 +71,6 @@ function SignUp() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email address"
-                required
                 className="w-full"
               />
             </div>
@@ -49,7 +80,6 @@ function SignUp() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                required
                 className="w-full"
               />
             </div>
@@ -59,10 +89,10 @@ function SignUp() {
               className="w-full bg-[#333] text-white"
               disabled={loading}
             >
-              {loading ? 'Creating account...' : 'Sign Up'}
+              {loading ? "Creating account..." : "Sign Up"}
             </Button>
             <p className="text-center text-sm text-gray-600">
-              Already have an account?{' '}
+              Already have an account?{" "}
               <Link to="/" className="text-blue-600 hover:text-blue-800">
                 Sign in
               </Link>

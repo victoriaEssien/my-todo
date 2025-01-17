@@ -4,10 +4,11 @@ import SignUp from "./auth/SignUp";
 import Login from "./auth/Login";
 import MyTodo from "./MyTodo";
 import { useAuth } from './hooks/useAuth';
+import PropTypes from "prop-types";
 
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  const token = Cookies.get('mytodo-access-token');
+  const token = Cookies.get(import.meta.env.VITE_ACCESS_TOKEN_ID);
 
   if (loading) {
     return <div>Loading...</div>;
@@ -18,6 +19,10 @@ const PrivateRoute = ({ children }) => {
   }
 
   return children;
+};
+
+PrivateRoute.propTypes = {
+  children: PropTypes.node.isRequired,
 };
 
 function App() {
