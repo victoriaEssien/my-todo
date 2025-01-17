@@ -11,10 +11,36 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
 
+  // Basic validation checks
+  const validateForm = () => {
+    if (!email || !password) {
+      setError("Both email and password are required.");
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+      return false;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return false;
+    }
+
+    setError(""); // Reset error if validation passes
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
+
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
 
     try {
       await signIn(email, password);
