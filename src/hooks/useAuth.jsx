@@ -52,7 +52,7 @@ export const useAuth = () => {
       email,
       password
     );
-    navigate("/home");
+    navigate("/");
     return userCredential.user;
   };
 
@@ -62,13 +62,13 @@ export const useAuth = () => {
       email,
       password
     );
-    navigate("/home");
+    navigate("/");
     return userCredential.user;
   };
 
   const signOut = async () => {
     await firebaseSignOut(auth);
-    navigate("/");
+    navigate("/login");
   };
 
   return { user, loading, signUp, signIn, signOut };
