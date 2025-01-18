@@ -93,7 +93,7 @@ function SignUp() {
             </Button>
             <p className="text-center text-sm text-gray-600">
               Already have an account?{" "}
-              <Link to="/" className="text-blue-600 hover:text-blue-800">
+              <Link to="/login" className="text-blue-600 hover:text-blue-800">
                 Sign in
               </Link>
             </p>
