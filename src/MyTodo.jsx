@@ -20,7 +20,7 @@ const PRIORITY_LEVELS = {
 };
 
 const MyTodo = () => {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
   const { user } = useAuth();
 
   const [selectedDate, setSelectedDate] = useState(today);
@@ -279,15 +279,13 @@ const MyTodo = () => {
   return (
     <div className="my-10 mx-2">
       <Card className="w-full max-w-md mx-auto">
+        <div className="flex items-center gap-1 bg-orange-100 text-orange-800 px-2 py-1">
+          <Flame className="w-4 h-4" />
+          <span className="text-sm font-medium">{streak}</span>
+        </div>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <CardTitle>My ToDo</CardTitle>
-              <div className="flex items-center gap-1 bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                <Flame className="w-4 h-4" />
-                <span className="text-sm font-medium">{streak} day streak</span>
-              </div>
-            </div>
+            <CardTitle>My ToDo</CardTitle>
             <Button
               type="button"
               onClick={() => setShowCategoryModal(true)}
