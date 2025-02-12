@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/Card";
 import { Button, Input } from "./components/Actions";
-import { CheckSquare, Square, Trash2, Plus, X } from "lucide-react";
+import { CheckSquare, Square, Trash2, Plus, X, Flame } from "lucide-react";
 import { db } from "./firebase_setup/firebase";
 import { useAuth } from "./hooks/useAuth";
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, setDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+  setDoc,
+} from "firebase/firestore";
 
 const PRIORITY_LEVELS = {
   HIGH: { label: "High", color: "bg-red-100 text-red-800" },
@@ -26,6 +33,8 @@ const MyTodo = () => {
   const [error, setError] = useState("");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [streak, setStreak] = useState(0);
+  const [lastInteractionDate, setLastInteractionDate] = useState(null);
 
   // Fetch initial data
   useEffect(() => {
@@ -33,18 +42,20 @@ const MyTodo = () => {
       if (!user) return;
 
       try {
-        const userDocRef = doc(db, 'users', user.uid);
+        const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
-        
+
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          setCategories(userData.categories || ['Work', 'Personal']);
-          setCategory(userData.categories?.[0] || 'Work');
+          setCategories(userData.categories || ["Work", "Personal"]);
+          setCategory(userData.categories?.[0] || "Work");
+          setStreak(userData.streak || 0);
+          setLastInteractionDate(userData.lastInteractionDate || null);
         }
 
-        const todosDocRef = doc(db, 'todos', user.uid);
+        const todosDocRef = doc(db, "todos", user.uid);
         const todosDoc = await getDoc(todosDocRef);
-        
+
         if (todosDoc.exists()) {
           setTodos(todosDoc.data());
         } else {
@@ -52,8 +63,8 @@ const MyTodo = () => {
           await setDoc(todosDocRef, {});
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setError('Failed to load your todos');
+        console.error("Error fetching data:", error);
+        setError("Failed to load your todos");
       } finally {
         setLoading(false);
       }
@@ -61,6 +72,66 @@ const MyTodo = () => {
 
     fetchData();
   }, [user]);
+
+  // Function to update streak
+  const updateStreak = async () => {
+    if (!user) return;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lastInteraction = lastInteractionDate
+      ? new Date(lastInteractionDate)
+      : null;
+
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+
+      // If this is the first interaction ever
+      if (!lastInteraction) {
+        await updateDoc(userDocRef, {
+          streak: 1,
+          lastInteractionDate: today.toISOString(),
+        });
+        setStreak(1);
+        setLastInteractionDate(today.toISOString());
+        return;
+      }
+
+      // Calculate days between last interaction and today
+      const lastInteractionDay = new Date(
+        lastInteraction.getFullYear(),
+        lastInteraction.getMonth(),
+        lastInteraction.getDate()
+      );
+      const diffTime = today.getTime() - lastInteractionDay.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      let newStreak;
+
+      // If interaction was today, don't update anything
+      if (diffDays === 0) {
+        return;
+      }
+      // If interaction was yesterday, increment streak
+      else if (diffDays === 1) {
+        newStreak = streak + 1;
+      }
+      // If more than one day has passed, reset streak
+      else {
+        newStreak = 1;
+      }
+
+      await updateDoc(userDocRef, {
+        streak: newStreak,
+        lastInteractionDate: today.toISOString(),
+      });
+
+      setStreak(newStreak);
+      setLastInteractionDate(today.toISOString());
+    } catch (error) {
+      console.error("Error updating streak:", error);
+    }
+  };
 
   const calculateProgress = (todos) => {
     if (!todos || todos.length === 0) return 0;
@@ -73,15 +144,15 @@ const MyTodo = () => {
     if (!newCategory.trim() || !user) return;
 
     try {
-      const userDocRef = doc(db, 'users', user.uid);
+      const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, {
-        categories: arrayUnion(newCategory.trim())
+        categories: arrayUnion(newCategory.trim()),
       });
-      setCategories(prev => [...prev, newCategory.trim()]);
+      setCategories((prev) => [...prev, newCategory.trim()]);
       setNewCategory("");
     } catch (error) {
-      console.error('Error adding category:', error);
-      setError('Failed to add category');
+      console.error("Error adding category:", error);
+      setError("Failed to add category");
     }
   };
 
@@ -89,18 +160,18 @@ const MyTodo = () => {
     if (!user) return;
 
     try {
-      const userDocRef = doc(db, 'users', user.uid);
+      const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, {
-        categories: arrayRemove(categoryToRemove)
+        categories: arrayRemove(categoryToRemove),
       });
-      
-      setCategories(prev => prev.filter(cat => cat !== categoryToRemove));
+
+      setCategories((prev) => prev.filter((cat) => cat !== categoryToRemove));
       if (category === categoryToRemove) {
         setCategory(categories[0] || "");
       }
     } catch (error) {
-      console.error('Error removing category:', error);
-      setError('Failed to remove category');
+      console.error("Error removing category:", error);
+      setError("Failed to remove category");
     }
   };
 
@@ -125,22 +196,23 @@ const MyTodo = () => {
       category,
       priority,
       createdAt: new Date().toISOString(),
-      userId: user.uid
+      userId: user.uid,
     };
 
     try {
-      const todosDocRef = doc(db, 'todos', user.uid);
+      const todosDocRef = doc(db, "todos", user.uid);
       const updatedTodos = {
         ...todos,
-        [selectedDate]: [...(todos[selectedDate] || []), newTodo]
+        [selectedDate]: [...(todos[selectedDate] || []), newTodo],
       };
-      
+
       await setDoc(todosDocRef, updatedTodos);
       setTodos(updatedTodos);
       setNewTask("");
+      await updateStreak();
     } catch (error) {
-      console.error('Error adding todo:', error);
-      setError('Failed to add todo');
+      console.error("Error adding todo:", error);
+      setError("Failed to add todo");
     }
   };
 
@@ -148,19 +220,20 @@ const MyTodo = () => {
     if (!user) return;
 
     try {
-      const todosDocRef = doc(db, 'todos', user.uid);
+      const todosDocRef = doc(db, "todos", user.uid);
       const updatedTodos = {
         ...todos,
-        [selectedDate]: todos[selectedDate].map(todo =>
+        [selectedDate]: todos[selectedDate].map((todo) =>
           todo.id === todoId ? { ...todo, completed: !todo.completed } : todo
-        )
+        ),
       };
-      
+
       await setDoc(todosDocRef, updatedTodos);
       setTodos(updatedTodos);
+      await updateStreak();
     } catch (error) {
-      console.error('Error updating todo:', error);
-      setError('Failed to update todo');
+      console.error("Error updating todo:", error);
+      setError("Failed to update todo");
     }
   };
 
@@ -168,17 +241,19 @@ const MyTodo = () => {
     if (!user) return;
 
     try {
-      const todosDocRef = doc(db, 'todos', user.uid);
+      const todosDocRef = doc(db, "todos", user.uid);
       const updatedTodos = {
         ...todos,
-        [selectedDate]: todos[selectedDate].filter(todo => todo.id !== todoId)
+        [selectedDate]: todos[selectedDate].filter(
+          (todo) => todo.id !== todoId
+        ),
       };
-      
+
       await setDoc(todosDocRef, updatedTodos);
       setTodos(updatedTodos);
     } catch (error) {
-      console.error('Error deleting todo:', error);
-      setError('Failed to delete todo');
+      console.error("Error deleting todo:", error);
+      setError("Failed to delete todo");
     }
   };
 
@@ -206,7 +281,13 @@ const MyTodo = () => {
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>My ToDo</CardTitle>
+            <div className="flex items-center gap-4">
+              <CardTitle>My ToDo</CardTitle>
+              <div className="flex items-center gap-1 bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                <Flame className="w-4 h-4" />
+                <span className="text-sm font-medium">{streak} day streak</span>
+              </div>
+            </div>
             <Button
               type="button"
               onClick={() => setShowCategoryModal(true)}
