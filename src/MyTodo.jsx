@@ -59,7 +59,6 @@ const MyTodo = () => {
         if (todosDoc.exists()) {
           setTodos(todosDoc.data());
         } else {
-          // Initialize todos document
           await setDoc(todosDocRef, {});
         }
       } catch (error) {
@@ -73,7 +72,71 @@ const MyTodo = () => {
     fetchData();
   }, [user]);
 
-  // Function to update streak
+  // Function to handle rolling over incomplete tasks
+  const rolloverIncompleteTasks = async (fromDate) => {
+    if (!user) return;
+
+    try {
+      const todosDocRef = doc(db, "todos", user.uid);
+      const incompleteTasks = (todos[fromDate] || []).filter(
+        (todo) => !todo.completed
+      );
+
+      if (incompleteTasks.length === 0) return;
+
+      // Calculate next day
+      const nextDate = new Date(fromDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      const nextDateStr = nextDate.toLocaleDateString("en-CA");
+
+      // Create updated todos object
+      const updatedTodos = {
+        ...todos,
+        [nextDateStr]: [
+          ...(todos[nextDateStr] || []),
+          ...incompleteTasks.map((task) => ({
+            ...task,
+            id: Date.now() + Math.random(),
+            rolledOver: true,
+            originalDate: fromDate,
+          })),
+        ],
+      };
+
+      // Remove incomplete tasks from the current day
+      updatedTodos[fromDate] = (todos[fromDate] || []).filter(
+        (todo) => todo.completed
+      );
+
+      await setDoc(todosDocRef, updatedTodos);
+      setTodos(updatedTodos);
+    } catch (error) {
+      console.error("Error rolling over tasks:", error);
+      setError("Failed to roll over incomplete tasks");
+    }
+  };
+
+  // Check for day change and roll over tasks
+  useEffect(() => {
+    const checkDayChange = () => {
+      const now = new Date();
+      const currentDate = now.toLocaleDateString("en-CA");
+
+      // If it's midnight (00:00)
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
+        const yesterdayDate = new Date(now);
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = yesterdayDate.toLocaleDateString("en-CA");
+
+        rolloverIncompleteTasks(yesterdayStr);
+      }
+    };
+
+    const interval = setInterval(checkDayChange, 60000);
+    return () => clearInterval(interval);
+  }, [todos, user]);
+
+  // Update streak
   const updateStreak = async () => {
     if (!user) return;
 
@@ -86,7 +149,6 @@ const MyTodo = () => {
     try {
       const userDocRef = doc(db, "users", user.uid);
 
-      // If this is the first interaction ever
       if (!lastInteraction) {
         await updateDoc(userDocRef, {
           streak: 1,
@@ -97,7 +159,6 @@ const MyTodo = () => {
         return;
       }
 
-      // Calculate days between last interaction and today
       const lastInteractionDay = new Date(
         lastInteraction.getFullYear(),
         lastInteraction.getMonth(),
@@ -108,17 +169,12 @@ const MyTodo = () => {
 
       let newStreak;
 
-      // If interaction was today, don't update anything
       if (diffDays === 0) {
         return;
-      }
-      // If interaction was yesterday, increment streak
-      else if (diffDays === 1) {
+      } else if (diffDays === 1) {
         newStreak = streak + 1;
-      }
-      // If more than one day has passed, reset streak
-      else {
-        newStreak = 1;
+      } else {
+        newStreak = 0;
       }
 
       await updateDoc(userDocRef, {
@@ -385,6 +441,12 @@ const MyTodo = () => {
                       }`}
                     >
                       {todo.text}
+                      {todo.rolledOver && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          (from{" "}
+                          {new Date(todo.originalDate).toLocaleDateString()})
+                        </span>
+                      )}
                     </span>
                     <div className="flex flex-wrap gap-1 mt-1">
                       <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
