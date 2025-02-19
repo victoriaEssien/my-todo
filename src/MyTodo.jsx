@@ -118,7 +118,7 @@ const MyTodo = () => {
       }
       // If more than one day has passed, reset streak
       else {
-        newStreak = 0;
+        newStreak = 1;
       }
 
       await updateDoc(userDocRef, {
